@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Contacts{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end mb-3 gap-2">
+  <div>
+    <h1 class="h3 mb-0"><i class="bi bi-person-lines-fill text-primary"></i> Contacts</h1>
+    <p class="text-body-secondary mb-0">Save recipients so you can pick them when sending.</p>
+  </div>
+  <a href="{% url 'sms_app:contact_create' %}" class="btn btn-primary"><i class="bi bi-person-plus"></i> Add contact</a>
+</div>
+
+<form method="get" class="mb-3">
+  <div class="input-group">
+    <span class="input-group-text"><i class="bi bi-search"></i></span>
+    <input type="search" name="q" class="form-control" placeholder="Search by name or number" value="{{ query }}">
+    <button class="btn btn-outline-primary">Search</button>
+  </div>
+</form>
+
+<div class="card shadow-sm border-0">
+  {% if contacts %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>Name</th><th>Phone number</th><th>Notes</th><th class="text-center">Messages</th><th class="text-end">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for c in contacts %}
+        <tr>
+          <td class="fw-semibold">{{ c.name }}</td>
+          <td class="text-nowrap">{{ c.phone_number }}</td>
+          <td class="text-body-secondary small">{{ c.notes|default:"—" }}</td>
+          <td class="text-center"><span class="badge text-bg-light border">{{ c.message_count }}</span></td>
+          <td class="text-end text-nowrap">
+            <a href="{% url 'sms_app:compose' %}?contact={{ c.pk }}" class="btn btn-sm btn-primary" title="Send SMS"><i class="bi bi-send"></i></a>
+            <a href="{% url 'sms_app:contact_edit' c.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'sms_app:contact_delete' c.pk %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="card-body text-center text-body-secondary py-5">
+      <div class="display-6"><i class="bi bi-person-x"></i></div>
+      {% if query %}No contacts match "{{ query }}".{% else %}No contacts yet. <a href="{% url 'sms_app:contact_create' %}">Add your first contact</a>.{% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

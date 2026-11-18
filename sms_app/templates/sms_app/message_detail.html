@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Message details{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'sms_app:history' %}">History</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Message #{{ message.pk }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div class="small text-body-secondary">To</div>
+            <div class="h5 mb-0">
+              {% if message.contact %}{{ message.contact.name }} <span class="text-body-secondary fs-6">{{ message.recipient }}</span>
+              {% else %}{{ message.recipient }}{% endif %}
+            </div>
+          </div>
+          <span class="badge fs-6 text-bg-{{ message.status_badge }}">{{ message.get_status_display }}</span>
+        </div>
+
+        <div class="p-3 bg-body-tertiary rounded message-body mb-3">{{ message.body }}</div>
+
+        <dl class="row small mb-0">
+          <dt class="col-sm-4">Created</dt><dd class="col-sm-8">{{ message.created_at|date:"M j, Y g:i:s A" }}</dd>
+          <dt class="col-sm-4">Provider</dt><dd class="col-sm-8">{{ message.provider }}{% if message.provider == 'console' %} (test mode – not really sent){% endif %}</dd>
+          <dt class="col-sm-4">Characters</dt><dd class="col-sm-8">{{ message.body|length }}</dd>
+          {% if message.provider_reference %}
+            <dt class="col-sm-4">Provider reference</dt><dd class="col-sm-8"><code>{{ message.provider_reference }}</code></dd>
+          {% endif %}
+          {% if message.provider_status %}
+            <dt class="col-sm-4">Provider status</dt><dd class="col-sm-8"><code>{{ message.provider_status }}</code></dd>
+          {% endif %}
+          <dt class="col-sm-4">Last status check</dt><dd class="col-sm-8">{{ message.status_checked_at|date:"M j, Y g:i:s A"|default:"Not checked yet" }}</dd>
+          {% if message.error_message %}
+            <dt class="col-sm-4 text-danger">Error / note</dt><dd class="col-sm-8 text-danger">{{ message.error_message }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-body fw-semibold"><i class="bi bi-signpost-split"></i> Delivery status</div>
+      <div class="card-body">
+        <ul class="status-steps mb-3">
+          {% for label, state in message.progress_steps %}
+            <li class="{{ state }}">
+              <span class="step-dot">
+                {% if state == 'done' %}<i class="bi bi-check"></i>{% elif state == 'failed' %}<i class="bi bi-x"></i>{% elif state == 'current' %}<i class="bi bi-three-dots"></i>{% endif %}
+              </span>
+              <span class="{% if state == 'todo' %}text-body-secondary{% endif %}">{{ label }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+        <p class="small mb-3">{{ message.status_explanation }}</p>
+
+        {% if message.can_refresh_status %}
+          <form method="post" action="{% url 'sms_app:message_refresh' message.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-primary w-100"><i class="bi bi-arrow-repeat"></i> Check status</button>
+          </form>
+          <p class="small text-body-secondary mt-2 mb-0">
+            <i class="bi bi-info-circle"></i> "Submitted" only means the provider accepted the request.
+            Delivery is confirmed only when the carrier reports it.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+      <a href="{% url 'sms_app:compose' %}{% if message.contact %}?contact={{ message.contact.pk }}{% endif %}" class="btn btn-outline-primary flex-fill"><i class="bi bi-send"></i> New message</a>
+      <a href="{% url 'sms_app:history' %}" class="btn btn-outline-secondary flex-fill"><i class="bi bi-arrow-left"></i> Back to history</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

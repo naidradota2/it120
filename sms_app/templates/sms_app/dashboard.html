@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end mb-3 gap-2">
+  <div>
+    <h1 class="h3 mb-0"><i class="bi bi-speedometer2 text-primary"></i> Dashboard</h1>
+    <p class="text-body-secondary mb-0">Overview of all sending attempts.</p>
+  </div>
+  <a href="{% url 'sms_app:compose' %}" class="btn btn-primary"><i class="bi bi-send"></i> Send SMS</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card shadow-sm border-0 h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-envelope"></i></span>
+      <div><div class="small text-body-secondary">Total attempts</div><div class="h4 mb-0">{{ total }}</div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card shadow-sm border-0 h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="stat-icon bg-info-subtle text-info-emphasis"><i class="bi bi-cloud-check"></i></span>
+      <div><div class="small text-body-secondary">Accepted by provider</div><div class="h4 mb-0">{{ submitted }} <span class="fs-6 text-body-secondary">({{ submit_rate }}%)</span></div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card shadow-sm border-0 h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="stat-icon bg-success-subtle text-success"><i class="bi bi-check2-all"></i></span>
+      <div><div class="small text-body-secondary">Confirmed delivered</div><div class="h4 mb-0">{{ delivered }} <span class="fs-6 text-body-secondary">({{ delivery_rate }}%)</span></div></div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card stat-card shadow-sm border-0 h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="stat-icon bg-danger-subtle text-danger"><i class="bi bi-x-octagon"></i></span>
+      <div><div class="small text-body-secondary">Failed</div><div class="h4 mb-0">{{ failed }}</div></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-body fw-semibold"><i class="bi bi-bar-chart"></i> Messages by status</div>
+      <div class="card-body">
+        {% for row in status_rows %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <a href="{% url 'sms_app:history' %}?status={{ row.value }}" class="text-decoration-none">
+                <span class="badge text-bg-{{ row.badge }}">{{ row.label }}</span>
+              </a>
+              <span>{{ row.count }}</span>
+            </div>
+            <div class="progress" role="progressbar" aria-label="{{ row.label }}" aria-valuenow="{{ row.percent }}" aria-valuemin="0" aria-valuemax="100" style="height: 8px;">
+              <div class="progress-bar bg-{{ row.badge }}" style="width: {{ row.percent }}%"></div>
+            </div>
+          </div>
+        {% endfor %}
+        <p class="small text-body-secondary mb-0">
+          <i class="bi bi-info-circle"></i> "Delivered" is counted only when the carrier confirms it.
+          Saved contacts: <a href="{% url 'sms_app:contact_list' %}">{{ contact_count }}</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-body fw-semibold d-flex justify-content-between">
+        <span><i class="bi bi-clock-history"></i> Recent attempts</span>
+        <a href="{% url 'sms_app:history' %}" class="small">View all</a>
+      </div>
+      {% if recent_messages %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <tbody>
+          {% for m in recent_messages %}
+            <tr onclick="window.location='{{ m.get_absolute_url }}'" style="cursor: pointer;">
+              <td class="text-nowrap text-body-secondary">{{ m.created_at|date:"M j, g:i A" }}</td>
+              <td class="text-nowrap fw-semibold">{% if m.contact %}{{ m.contact.name }}{% else %}{{ m.recipient }}{% endif %}</td>
+              <td class="text-truncate" style="max-width: 220px;">{{ m.body }}</td>
+              <td><span class="badge text-bg-{{ m.status_badge }}">{{ m.get_status_display }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div class="card-body text-center text-body-secondary py-5">No messages yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Delete contact{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <div class="card shadow-sm border-danger">
+      <div class="card-body p-4">
+        <h1 class="h4 text-danger"><i class="bi bi-trash"></i> Delete contact?</h1>
+        <p>Are you sure you want to delete <strong>{{ contact.name }}</strong> ({{ contact.phone_number }})?</p>
+        <p class="small text-body-secondary">Messages already sent to this number stay in the history.</p>
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Yes, delete</button>
+          <a href="{% url 'sms_app:contact_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

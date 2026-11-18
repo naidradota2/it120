@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}Send SMS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end mb-3 gap-2">
+  <div>
+    <h1 class="h3 mb-0"><i class="bi bi-send text-primary"></i> Send an SMS</h1>
+    <p class="text-body-secondary mb-0">Enter a recipient, write your message, check the preview, then send.</p>
+  </div>
+  {% if sms_test_mode %}
+    <div class="alert alert-warning py-2 px-3 mb-0 small">
+      <i class="bi bi-cone-striped"></i> <strong>Test mode:</strong> messages are recorded but not really sent.
+    </div>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <!-- Compose form -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        <form method="post" id="sms-form" novalidate>
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <!-- Contact picker -->
+          <div class="mb-3">
+            <label for="id_contact" class="form-label">Choose a saved contact <span class="text-body-secondary small">(optional)</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person-lines-fill"></i></span>
+              <select name="contact" id="id_contact" class="form-select">
+                <option value="">— Type a number below or choose a contact —</option>
+                {% for c in contacts %}
+                  <option value="{{ c.pk }}" data-phone="{{ c.phone_number }}" data-name="{{ c.name }}"
+                    {% if form.contact.value|stringformat:'s' == c.pk|stringformat:'s' %}selected{% endif %}>
+                    {{ c.name }} ({{ c.phone_number }})
+                  </option>
+                {% endfor %}
+              </select>
+              <a href="{% url 'sms_app:contact_create' %}" class="btn btn-outline-secondary" title="Add a contact"><i class="bi bi-plus-lg"></i></a>
+            </div>
+          </div>
+
+          <!-- Recipient -->
+          <div class="mb-3">
+            <label for="{{ form.recipient.id_for_label }}" class="form-label">Recipient phone number <span class="text-danger">*</span></label>
+            <div class="input-group has-validation">
+              <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+              <input type="tel" name="recipient" id="{{ form.recipient.id_for_label }}" maxlength="25"
+                     class="form-control{% if form.recipient.errors %} is-invalid{% endif %}"
+                     placeholder="+639171234567 or 09171234567" autocomplete="tel" inputmode="tel"
+                     value="{{ form.recipient.value|default:'' }}" required>
+              <div class="invalid-feedback" id="recipient-feedback">
+                {% for error in form.recipient.errors %}{{ error }} {% endfor %}
+              </div>
+            </div>
+            <div class="form-text">{{ form.recipient.help_text }}</div>
+          </div>
+
+          <!-- Message -->
+          <div class="mb-2">
+            <label for="{{ form.body.id_for_label }}" class="form-label">Message <span class="text-danger">*</span></label>
+            <textarea name="body" id="{{ form.body.id_for_label }}" rows="5" maxlength="{{ max_length }}"
+                      class="form-control{% if form.body.errors %} is-invalid{% endif %}"
+                      placeholder="Type your message…" required>{{ form.body.value|default:'' }}</textarea>
+            <div class="invalid-feedback" id="body-feedback">
+              {% for error in form.body.errors %}{{ error }} {% endfor %}
+            </div>
+          </div>
+
+          <!-- Character counter -->
+          <div class="d-flex flex-wrap justify-content-between small mb-1" id="counter" data-max="{{ max_length }}">
+            <span><span id="char-count">0</span> / {{ max_length }} characters</span>
+            <span>
+              <span id="segment-count">0</span> SMS segment(s) ·
+              <span id="encoding" class="badge text-bg-light border">GSM-7</span>
+              · <span id="chars-left">160</span> left in this segment
+            </span>
+          </div>
+          <div class="progress mb-4" role="progressbar" aria-label="Message length" style="height: 6px;">
+            <div class="progress-bar" id="char-progress" style="width: 0%"></div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4" id="send-btn">
+              <span class="spinner-border spinner-border-sm d-none" id="send-spinner" aria-hidden="true"></span>
+              <i class="bi bi-send-fill" id="send-icon"></i> Send SMS
+            </button>
+            <button type="reset" class="btn btn-outline-secondary" id="clear-btn"><i class="bi bi-eraser"></i> Clear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if failed_message %}
+      <div class="card border-danger mt-3">
+        <div class="card-body">
+          <h2 class="h6 text-danger mb-1"><i class="bi bi-x-octagon"></i> Sending attempt failed</h2>
+          <p class="small mb-1">{{ failed_message.error_message }}</p>
+          <p class="small text-body-secondary mb-0">The attempt was saved in the <a href="{% url 'sms_app:history' %}">history</a>. Fix the problem and press <strong>Send SMS</strong> again.</p>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Live preview -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-body fw-semibold"><i class="bi bi-phone"></i> Message preview</div>
+      <div class="card-body">
+        <div class="phone-preview mx-auto">
+          <div class="phone-top">
+            <div class="small text-body-secondary">To</div>
+            <div class="fw-semibold" id="preview-to">No recipient yet</div>
+          </div>
+          <div class="phone-screen">
+            <div class="bubble" id="preview-bubble"><span class="text-body-secondary fst-italic">Your message will appear here…</span></div>
+            <div class="bubble-meta small text-body-secondary" id="preview-meta"></div>
+          </div>
+        </div>
+        <p class="small text-body-secondary mt-3 mb-0">
+          <i class="bi bi-info-circle"></i> Long messages are split into several SMS segments.
+          Emoji or special characters switch to Unicode, which allows fewer characters per segment.
+        </p>
+      </div>
+    </div>
+
+    {% if recent_messages %}
+    <div class="card shadow-sm border-0 mt-3">
+      <div class="card-header bg-body fw-semibold d-flex justify-content-between">
+        <span><i class="bi bi-clock-history"></i> Recent attempts</span>
+        <a href="{% url 'sms_app:history' %}" class="small">View all</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for m in recent_messages %}
+          <a href="{{ m.get_absolute_url }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span class="text-truncate me-2">
+              <span class="fw-semibold">{% if m.contact %}{{ m.contact.name }}{% else %}{{ m.recipient }}{% endif %}</span>
+              <span class="text-body-secondary small d-block text-truncate">{{ m.body|truncatechars:40 }}</span>
+            </span>
+            <span class="badge text-bg-{{ m.status_badge }}">{{ m.get_status_display }}</span>
+          </a>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+<script src="{% static 'js/compose.js' %}"></script>
+{% endblock %}
