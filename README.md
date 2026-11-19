@@ -168,7 +168,7 @@ python manage.py createsuperuser
 1. Create a free account at **https://textbee.dev**.
 2. Install the **textbee Android app** on your phone using the link in the dashboard.
 3. In the dashboard, generate an **API key**. In the app, scan the QR code (or enter the key) to register the phone. Leave the app's optional *Device ID* field empty the first time.
-4. Allow the app to **send SMS** on the phone.
+4. Allow the app to **send SMS** on the phone. Some phones (e.g. **HONOR/Huawei**) block this by default: open **Settings → Apps → textbee → Permissions** and allow **SMS**, and under **Settings → Battery → App launch** set textbee to *Manage manually* with auto-launch and background activity allowed. Otherwise messages stay at "dispatched" and are never sent.
 5. Copy the **Device ID** of your phone from the dashboard.
 6. Open your local `.env` file and set:
    ```ini
@@ -221,13 +221,13 @@ python manage.py test
 
 | # | Test case | Expected result | Automated test | Automated result | Manual check (live app) |
 |---|---|---|---|---|---|
-| 1 | Valid phone number and message | App sends the SMS and shows the provider's response | `test_valid_send_shows_submitted_not_delivered`, `test_successful_send_returns_batch_id` | ✅ Pass | ☐ Sent to an authorized number via textbee: _received? delivery time?_ |
+| 1 | Valid phone number and message | App sends the SMS and shows the provider's response | `test_valid_send_shows_submitted_not_delivered`, `test_successful_send_returns_batch_id` | ✅ Pass | ✅ Sent via textbee to my own authorized number on Nov 19, 2026: status went Submitted → Sent within ~5 seconds and the SMS **arrived immediately** |
 | 2 | Empty phone number | Submission rejected with a validation message | `test_empty_phone_rejected` | ✅ "Please enter the recipient phone number." | ☐ |
 | 3 | Empty message | Submission rejected with a validation message | `test_empty_message_rejected` | ✅ "Please enter a message." | ☐ |
 | 4 | Invalid phone number (e.g. `12345`, `0917ABC4567`) | Validation error shown, nothing sent | `test_invalid_phone_rejected` + 5 validator tests | ✅ Format error shown, no message saved | ☐ |
 | 5 | Incorrect or missing credentials | Error handled without exposing secrets | `test_missing_credentials_shows_safe_error`, `test_wrong_credentials_do_not_leak_key` | ✅ Safe messages; API key never displayed | ☐ Blank / wrong `TEXTBEE_API_KEY` in `.env` |
 | 6 | Provider or network error | Understandable failure message | `test_network_error_message`, `test_timeout`, `test_provider_rejects_message`, `test_rate_limited` | ✅ "Could not reach the SMS provider..." etc. | ☐ Wi-Fi turned off while sending |
-| 7 | Successful provider response | Confirms **submission** without claiming delivery | `test_valid_send_shows_submitted_not_delivered`, `test_status_delivered` | ✅ Shows **Submitted**; **Delivered** only after the status check confirms it | ☐ |
+| 7 | Successful provider response | Confirms **submission** without claiming delivery | `test_valid_send_shows_submitted_not_delivered`, `test_status_delivered` | ✅ Shows **Submitted**; **Delivered** only after the status check confirms it | ✅ Live send first showed **Submitted**, then **Sent** after *Check status*; never claimed Delivered without a carrier report |
 
 > Tick the manual checks (☐ → ✅) and fill in the live results after testing the running app with real textbee credentials.
 
@@ -243,7 +243,8 @@ python manage.py test
 - Testing used only **authorized recipients** (my own numbers).
 
 ## 12. Known limitations
-- **textbee depends on the Android phone:** it must be on, connected to the internet, running the textbee app and have SMS load. If the phone is offline, messages stay **Submitted** until it reconnects.
+- **textbee depends on the Android phone:** it must be on, connected to the internet, running the textbee app and have SMS load. If the phone is offline, or the phone blocks textbee from sending SMS, messages stay **Submitted** (textbee status "dispatched") until the problem is fixed. This happened during testing and was solved by allowing the SMS permission.
+- Some carriers do not return **delivery reports**, so a message that arrived may stay at **Sent** or become **Unknown** instead of **Delivered**.
 - Messages are sent from the phone's **own number**, not a branded sender name.
 - The free textbee plan allows about **300 SMS per month and 50 per day**.
 - Delivery status is updated when the user clicks **Check status**. Webhooks for automatic updates are not implemented, because the app runs on a local computer that textbee cannot reach.
